@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE BrickStoreXML>
+<BrickStoreXML>
+ <Inventory>
+  <Item>
+   <ItemID>2343</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>85</ColorID>
+   <ItemName>Minifig, Utensil Goblet</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Dark Bluish Gray</ColorName>
+   <CategoryID>18</CategoryID>
+   <CategoryName>Minifig, Utensil</CategoryName>
+   <Status>I</Status>
+   <Qty>1</Qty>
+   <Price>0.568</Price>
+   <Condition>U</Condition>
+   <Remarks>315</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2357</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>85</ColorID>
+   <ItemName>Brick 2 x 2 Corner</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Dark Bluish Gray</ColorName>
+   <CategoryID>5</CategoryID>
+   <CategoryName>Brick</CategoryName>
+   <Status>I</Status>
+   <Qty>1</Qty>
+   <Price>0.236</Price>
+   <Condition>U</Condition>
+   <Remarks>312</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2397</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>85</ColorID>
+   <ItemName>Horse Hitching</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Dark Bluish Gray</ColorName>
+   <CategoryID>86</CategoryID>
+   <CategoryName>Animal, Accessory</CategoryName>
+   <Status>I</Status>
+   <Qty>1</Qty>
+   <Price>0.536</Price>
+   <Condition>U</Condition>
+   <Remarks>319</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2412b</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>85</ColorID>
+   <ItemName>Tile, Modified 1 x 2 Grille with Bottom Groove / Lip</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Dark Bluish Gray</ColorName>
+   <CategoryID>38</CategoryID>
+   <CategoryName>Tile, Modified</CategoryName>
+   <Status>I</Status>
+   <Qty>75</Qty>
+   <Price>0.096</Price>
+   <Condition>U</Condition>
+   <Remarks>153</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2412b</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>86</ColorID>
+   <ItemName>Tile, Modified 1 x 2 Grille with Bottom Groove / Lip</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Light Bluish Gray</ColorName>
+   <CategoryID>38</CategoryID>
+   <CategoryName>Tile, Modified</CategoryName>
+   <Status>I</Status>
+   <Qty>22</Qty>
+   <Price>0.108</Price>
+   <Condition>U</Condition>
+   <Remarks>154</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2413</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>9</ColorID>
+   <ItemName>Wedge, Plate 4 x 9</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Light Gray</ColorName>
+   <CategoryID>583</CategoryID>
+   <CategoryName>Wedge, Plate</CategoryName>
+   <Status>I</Status>
+   <Qty>6</Qty>
+   <Price>0.296</Price>
+   <Condition>U</Condition>
+   <Remarks>259</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2420</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>85</ColorID>
+   <ItemName>Plate 2 x 2 Corner</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Dark Bluish Gray</ColorName>
+   <CategoryID>26</CategoryID>
+   <CategoryName>Plate</CategoryName>
+   <Status>I</Status>
+   <Qty>2</Qty>
+   <Price>0.152</Price>
+   <Condition>U</Condition>
+   <Remarks>047</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2420</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>86</ColorID>
+   <ItemName>Plate 2 x 2 Corner</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Light Bluish Gray</ColorName>
+   <CategoryID>26</CategoryID>
+   <CategoryName>Plate</CategoryName>
+   <Status>I</Status>
+   <Qty>8</Qty>
+   <Price>0.192</Price>
+   <Condition>U</Condition>
+   <Remarks>046</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+  <Item>
+   <ItemID>2429c01</ItemID>
+   <ItemTypeID>P</ItemTypeID>
+   <ColorID>85</ColorID>
+   <ItemName>Hinge Plate 1 x 4 Swivel Top / Base Complete Assembly</ItemName>
+   <ItemTypeName>Part</ItemTypeName>
+   <ColorName>Dark Bluish Gray</ColorName>
+   <CategoryID>22</CategoryID>
+   <CategoryName>Hinge</CategoryName>
+   <Status>I</Status>
+   <Qty>24</Qty>
+   <Price>0.440</Price>
+   <Condition>U</Condition>
+   <Remarks>180</Remarks>
+   <OrigPrice>0.000</OrigPrice>
+   <OrigQty>0</OrigQty>
+  </Item>
+ </Inventory>
+</BrickStoreXML>
