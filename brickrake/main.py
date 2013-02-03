@@ -8,11 +8,20 @@ from brickrake import scraper
 
 # parse args
 parser = argparse.ArgumentParser()
-parser.add_argument('--parts-list', required=True, help='BSX file containing desired parts')
-parser.add_argument('--store-list', default=None, help='JSON file containing store metadata')
-parser.add_argument('--country', default=None, help='limit search to stores in a particular country')
-parser.add_argument('--feedback', default=100, help='limit search to stores with enough feedback')
-parser.add_argument('--price-guide', default=None, help='Location to save price guide for wanted list')
+parser.add_argument('--parts-list', required=True,
+    help='BSX file containing desired parts')
+parser.add_argument('--store-list', default=None,
+    help='JSON file containing store metadata')
+parser.add_argument('--country', default=None,
+    help='limit search to stores in a particular country')
+parser.add_argument('--feedback', default=100, type=int,
+    help='limit search to stores with enough feedback')
+parser.add_argument('--price-guide', default=None,
+    help='Location to save price guide for wanted list')
+parser.add_argument('--max-n-stores', default=5, type=int
+    help='Maximum number of different stores in a proposed solution')
+parser.add_argument('--output', default='solutions.json', 
+    help='Where to save purchase recommendations')
 args = parser.parse_args()
 
 # load in wanted parts
@@ -68,9 +77,16 @@ if args.price_guide is not None:
   io.save_price_guide(open(args.price_guide, 'w'), available_parts)
 
 # decide on which stores to use
-for k in range(8):
-  solutions = minimizer.brute_force(wanted_parts, available_parts, k)
-  solutions = list(sorted(solutions, key=lambda x: x['cost']))
-  for i in range(5):
+solutions = {}
+for k in range(args.max_n_stores):
+  s = minimizer.brute_force(wanted_parts, available_parts, k)
+  s = list(sorted(s, key=lambda x: x['cost']))
+  solutions[k] = s[0:10]
+
+  print '%8s %40s' % ('Cost', 'Store IDs')
+  for i in range(min(5, len(solutions))):
     s = solutions[i]
-    print '%8.2f %40s' % (s['cost'], s['store_ids'])
+    print '$%7.2f %40s' % (s['cost'], s['store_ids'])
+
+# store solution
+io.save_solutions(open(args.output, 'w'), solutions)

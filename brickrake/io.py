@@ -48,6 +48,16 @@ def load_store_metadata(f):
   return json.load(f)
 
 
+def save_solutions(path, metadata):
+  """Save a set of buying recommendations"""
+  json.dump(metadata, f, indent=2)
+
+
+def load_solutions(f):
+  """Load a set of buying recommendations"""
+  return json.load(f)
+
+
 def save_store_metadata(path, metadata):
   """Save metadata associated with stores"""
   json.dump(metadata, f, indent=2)

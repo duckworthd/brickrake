@@ -71,6 +71,7 @@ def brute_force(wanted_parts, price_guide, k):
 def min_cost(wanted_parts, available_parts):
   """Find the lowest cost way to buy all wanted_parts"""
   result = []
+  cost = 0.0
   for item in wanted_parts:
     # filter available_parts for inventory that match this item
     def f(x):
@@ -87,7 +88,9 @@ def min_cost(wanted_parts, available_parts):
     while n_remaining > 0:
       if len(matching) == 0:
         print 'WARNING: couldn\'t find enough inventory to purchase %s' % (item['ItemName'],)
+        cost = float('inf')
         break
+
       next = matching.pop()
       amount = min(n_remaining, next['quantity_available'])
       r = {
@@ -99,8 +102,8 @@ def min_cost(wanted_parts, available_parts):
       }
       result.append(r)
       n_remaining -= amount
+      cost += amount * next['cost_per_unit']
 
-  cost = sum([e['quantity'] * e['cost_per_unit'] for e in result])
   return (cost, result)
 
 
