@@ -18,6 +18,7 @@ CONVERT = {
   'ColorID': int,
 }
 
+
 def load_bsx(f):
   """Parse all items from a Brickstore Parts List XML file (*.bsx)
 
@@ -62,6 +63,7 @@ def save_bsx(f, allocation):
     itemtype.text = "P"   # TODO this is a big assumption :(
 
   etree.ElementTree(inventory).write(f)
+  return
 
 
 def save_bsx_per_vendor(folder, solution):
@@ -99,11 +101,11 @@ def save_store_metadata(f, metadata):
   json.dump(metadata, f, indent=2)
 
 
-def load_solutions(f):
+def load_solution(f):
   """Load a set of buying recommendations"""
   return json.load(f)
 
 
-def save_solutions(f, solutions):
+def save_solution(f, solutions):
   """Save a set of buying recommendations"""
   json.dump(solutions, f, indent=2)
