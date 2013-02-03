@@ -88,7 +88,7 @@ JUST_RIGHT = [
     'color_id': 3,
     'cost_per_unit': 0.10,
     'store_id': 'one',
-    'quantity_available': 25
+    'quantity_available': 30
   },
   {
     'item_id': '123',
@@ -104,7 +104,7 @@ JUST_RIGHT = [
     'color_id': 80,
     'cost_per_unit': 0.20,
     'store_id': 'one',
-    'quantity_available': 12
+    'quantity_available': 10
   }
 ]
 
@@ -120,14 +120,14 @@ ALLOCATION = [
     'item_id': '123',
     'color_id': 3,
     'store_id': 'one',
-    'quantity': 25,
+    'quantity': 30,
     'cost_per_unit': 0.10,
   },
   {
     'item_id': '123',
     'color_id': 3,
     'store_id': 'two',
-    'quantity': 25,
+    'quantity': 20,
     'cost_per_unit': 0.25,
   },
   {
@@ -149,14 +149,14 @@ def test_covers():
 def test_min_cost():
   assert min_cost(WANTED_PARTS, NOT_ENOUGH_INVENTORY)[0] == float('inf')
   assert min_cost(WANTED_PARTS, MISSING_PART)[0] == float('inf')
-  assert min_cost(WANTED_PARTS, JUST_RIGHT)[0] == (100 * 0.05 + 25 * 0.1 + 25 * 0.25 + 10 * 0.2)
+  assert min_cost(WANTED_PARTS, JUST_RIGHT)[0] == sum(x['cost_per_unit'] * x['quantity'] for x in ALLOCATION)
   assert min_cost(WANTED_PARTS, JUST_RIGHT)[1] == ALLOCATION
 
 
 def test_brute_force():
   assert brute_force(WANTED_PARTS, JUST_RIGHT, 1) == []
   assert brute_force(WANTED_PARTS, JUST_RIGHT, 2) == [{
-    'cost': (100 * 0.05 + 25 * 0.1 + 25 * 0.25 + 10 * 0.2),
+    'cost': sum(x['cost_per_unit'] * x['quantity'] for x in ALLOCATION),
     'allocation': ALLOCATION,
     'store_ids': ('two', 'one')
   }]
