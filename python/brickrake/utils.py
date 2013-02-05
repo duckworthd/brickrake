@@ -2,6 +2,7 @@
 Utility methods
 """
 import itertools
+import math
 import urllib
 import urlparse
 
@@ -34,3 +35,7 @@ def flatten(arr):
 def index(items):
   """Create a numerical index over a set of objects"""
   return dict( (k, i) for (i, k) in enumerate(set(items)) )
+
+
+def quantile(n, p):
+  return int(math.ceil(p * n))

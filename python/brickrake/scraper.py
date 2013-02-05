@@ -10,9 +10,8 @@ import color
 import utils
 
 
-def price_guide(item, allowed_stores=None):
+def price_guide(item, allowed_stores=None, max_cost_quantile=None):
   """Fetch pricing info for an item"""
-  parts_left = item['Qty']
   results = []
 
   if (item['ItemTypeID'] == 'P' and 'stk0' in item['ItemID']) or \
@@ -45,6 +44,10 @@ def price_guide(item, allowed_stores=None):
       # not available in this color :(
       continue
     else:
+
+      # newly found inventory
+      new = []
+
       for td in page.find_all('td'):
         if td.find('a', recursive=False, href=re.compile('/store.asp')) is not None:
           # find the td element with a link to a store. Its siblings contain
@@ -52,24 +55,35 @@ def price_guide(item, allowed_stores=None):
           store_url = td.find('a')['href']
           store_id = int(utils.get_params(store_url)['sID'])
           quantity = int(td.next_sibling.text)
-          cost_per_unit = float(re.findall('[0-9.]+', td.next_sibling.next_sibling.text)[0])
+          cost_per_unit = float(re.findall('[0-9.]+',
+                                td.next_sibling.next_sibling.text)[0])
 
-          if (allowed_stores is not None) and (not store_id in allowed_stores):
-            continue
-
-          results.append({
+          new.append({
             'item_id': item['ItemID'],
             'wanted_color_id': item['ColorID'],
             'color_id': c,
-            'store_url': 'http://www.bricklink.com' + store_url,
             'store_id': store_id,
             'quantity_available': quantity,
             'cost_per_unit': cost_per_unit
           })
 
-          parts_left -= quantity
+      # remove items from disallowed stores
+      if allowed_stores is not None:
+        new = filter(lambda x: store_id in allowed_stores, new)
 
-    if parts_left <= 0:
+      # remove items that cost too much
+      if max_cost_quantile is not None:
+        observed_prices = [e['quantity_available'] * [e['cost_per_unit']] for e in new]
+        observed_prices = list(sorted(utils.flatten(observed_prices)))
+        if len(observed_prices) > 0:
+          i = utils.quantile(len(observed_prices)-1, max_cost_quantile)
+          max_price = observed_prices[i]
+          new = filter(lambda x: x['cost_per_unit'] <= max_price, new)
+
+      # add what's left to the considered inventory
+      results.extend(new)
+
+    if sum(e['quantity_available'] for e in results) >= item['Qty']:
       # stop early, we've got everything we need
       return results
 

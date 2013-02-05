@@ -147,6 +147,7 @@ def greedy(wanted_parts, price_guide):
       # out
       while wanted_qty > 0 and len(available) > 0:
         next = available.pop()
+
         amount_to_buy = min(next['quantity_available'], wanted_qty)
 
         result.append({

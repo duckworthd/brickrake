@@ -62,7 +62,8 @@ def price_guide(args):
     print fmt.format(i=i, status="seeking", name=item['ItemName'], color=item['ColorName'], quantity=item['Qty'])
     try:
       # fetch price data for this item in the closest available color
-      new = scraper.price_guide(item, allowed_stores=allowed_stores)
+      new = scraper.price_guide(item, allowed_stores=allowed_stores,
+                                max_cost_quantile=args.max_price_quantile)
       available_parts.extend(new)
 
       # print out status message
@@ -158,6 +159,9 @@ if __name__ == '__main__':
       help='limit search to stores in a particular country')
   parser_pg.add_argument('--feedback', default=100, type=int,
       help='limit search to stores with enough feedback')
+  parser_pg.add_argument('--max-price-quantile', default=0.75, type=float,
+      help=('Ignore lots that cost more than this quantile' +
+            ' of the price distribution per item'))
   parser_pg.add_argument('--resume', default=None,
       help='Resume a previously run price_guide search')
   parser_pg.add_argument('--output', required=True,
