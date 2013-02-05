@@ -8,6 +8,7 @@ from brickrake import color
 from brickrake import io
 from brickrake import minimizer
 from brickrake import scraper
+from brickrake import utils
 
 
 def price_guide(args):
@@ -40,9 +41,25 @@ def price_guide(args):
     print 'Using all stores'
 
   # get prices for available parts
-  available_parts = []
+  fmt = "{i:4d} {status:10s} {name:60s} {color:30s} {quantity:5d}"
+  print "{i:4s} {status:10s} {name:60s} {color:30s} {quantity:5s}" \
+      .format(i="i", status="status", name="name", color="color", quantity="qty")
+  print (4 + 1 + 10 + 1 + 60 + 1 + 30 + 1 + 5) * "-"
+
+  if args.resume:
+    available_parts = io.load_price_guide(open(args.resume))
+  else:
+    available_parts = []
+
   for (i, item) in enumerate(wanted_parts):
-    print '#%d: Retrieving availability for %d %s %s' % (i, item['Qty'], item['ColorName'], item['ItemName'])
+    # skip this item if we already have enough
+    quantity_found = sum([e['quantity_available'] for e in available_parts
+                          if e['item_id'] == item['ItemID'] and e['wanted_color_id'] == item['ColorID']])
+    if quantity_found >= item['Qty']:
+      print fmt.format(i=i, status="passing", name=item['ItemName'], color="", quantity=quantity_found)
+      continue
+
+    print fmt.format(i=i, status="seeking", name=item['ItemName'], color=item['ColorName'], quantity=item['Qty'])
     try:
       # fetch price data for this item in the closest available color
       new = scraper.price_guide(item, allowed_stores=allowed_stores)
@@ -51,7 +68,7 @@ def price_guide(args):
       # print out status message
       total_quantity = sum(e['quantity_available'] for e in new)
       colors = [color.name(id) for id in set(e['color_id'] for e in new)]
-      print 'Found %d available %s in the following colors: %s' % (total_quantity, item['ItemName'], colors)
+      print fmt.format(i=i, status="found", name=item['ItemName'], color=",".join(colors), quantity=total_quantity)
 
       if total_quantity < item['Qty']:
         print 'WARNING! Couldn\'t find enough parts!'
@@ -68,33 +85,55 @@ def minimize(args):
   """Minimize the cost of a purchase"""
   # load in parts lists, pricing data
   wanted_parts = io.load_bsx(open(args.parts_list))
+  print 'Loaded %d wanted parts' % len(wanted_parts)
+
   available_parts = io.load_price_guide(open(args.price_guide))
-  print 'Loaded %d different parts' % len(wanted_parts)
+  print 'Loaded parts available from %d stores' % len(set(e['store_id'] for e in available_parts))
 
   # decide on which stores to use
-  for k in range(1, args.max_n_stores):
-    solutions = minimizer.brute_force(wanted_parts, available_parts, k)
-    solutions = list(sorted(solutions, key=lambda x: x['cost']))
-    solutions = solutions[0:10]
 
-    if len(solutions) > 0:
-      print '%8s %40s' % ('Cost', 'Store IDs')
-      for s in solutions[:10]:
-        print '$%7.2f %40s' % (s['cost'], s['store_ids'])
-    else:
-      print "No solutions using %d stores" % k
+  ### GREEDY ###
+  solution = minimizer.greedy(wanted_parts, available_parts)[0]
+  io.save_solution(open(args.output + ".json", 'w'), solution)
 
-    # save output
-    output_folder = os.path.join(args.output, str(k))
-    try:
-      os.makedirs(output_folder)
-    except OSError:
-      pass
+  wanted_by_item = utils.groupby(wanted_parts,
+                                 lambda x: (x['ItemID'], x['ColorID']))
+  available_by_item = utils.groupby(solution['allocation'],
+                                    lambda x: (x['item_id'], x['wanted_color_id']))
 
-    for (i, solution) in enumerate(solutions):
-      output_path = os.path.join(output_folder, "%02d.json" % i)
-      with open(output_path, 'w') as f:
-        io.save_solution(f, solution)
+  # print outs
+  stores = set(e['store_id'] for e in solution['allocation'])
+  cost = solution['cost']
+  print 'Total cost: $%.2f | n_stores: %d' % (cost, len(stores))
+  print 'Most expensive items:'
+  by_price = sorted(solution['allocation'], key=lambda x: -1 * x['cost_per_unit'])
+  for item in by_price[0:50]:
+    print item
+
+  # ### BRUTE FORCE ###
+  # for k in range(1, args.max_n_stores):
+  #   solutions = minimizer.brute_force(wanted_parts, available_parts, k)
+  #   solutions = list(sorted(solutions, key=lambda x: x['cost']))
+  #   solutions = solutions[0:10]
+
+  #   if len(solutions) > 0:
+  #     print '%8s %40s' % ('Cost', 'Store IDs')
+  #     for s in solutions[:10]:
+  #       print '$%7.2f %40s' % (s['cost'], s['store_ids'])
+  #   else:
+  #     print "No solutions using %d stores" % k
+
+  #   # save output
+  #   output_folder = os.path.join(args.output, str(k))
+  #   try:
+  #     os.makedirs(output_folder)
+  #   except OSError:
+  #     pass
+
+  #   for (i, solution) in enumerate(solutions):
+  #     output_path = os.path.join(output_folder, "%02d.json" % i)
+  #     with open(output_path, 'w') as f:
+  #       io.save_solution(f, solution)
 
 
 def wanted_list(args):
@@ -119,6 +158,8 @@ if __name__ == '__main__':
       help='limit search to stores in a particular country')
   parser_pg.add_argument('--feedback', default=100, type=int,
       help='limit search to stores with enough feedback')
+  parser_pg.add_argument('--resume', default=None,
+      help='Resume a previously run price_guide search')
   parser_pg.add_argument('--output', required=True,
       help='Location to save price guide for wanted list')
   parser_pg.set_defaults(func=price_guide)
