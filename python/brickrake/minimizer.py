@@ -207,7 +207,8 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
   print 'building...'
   for (store_id, inventory) in available_by_store.iteritems():
     # a variable for if anything was bought from this store. if 1, then pay
-    # shipping cost; if 0, then everything lot in it has 0 quantity available
+    # shipping cost and all store inventory is available; if 0, then every
+    # lot in it has 0 quantity available
     use_store = solver.variable(vartype=scip.BINARY,
                                 coefficient=shipping_cost)
 
@@ -238,7 +239,7 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
 
   # for every wanted lot
   for lot in wanted_parts:
-    # a constraint saying amount bought == wanted amount
+    # a constraint saying amount bought >= wanted amount
     variables = item_variables[kf2(lot)]
     solver += (sum(variables) >= lot['Qty'])
 

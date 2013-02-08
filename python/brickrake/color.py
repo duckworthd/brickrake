@@ -5,6 +5,9 @@ import json
 import math
 import os
 
+from colormath.color_objects import LabColor
+from colormath.color_diff import delta_e_cie2000
+
 # mapping from ColorID to Lab color space. Made using colors extracted from
 # http://www.bricklink.com/catalogColors.asp and code from
 # http://www.cse.unr.edu/~quiroz/inc/colortransforms.py
@@ -29,7 +32,7 @@ def similar_to(color_id):
 
 def distance(color1, color2):
   """Color distance as defined by CIE76 (L2 norm)"""
-  return math.sqrt(sum((i-j) ** 2 for (i, j) in zip(color1, color2)))
+  return delta_e_cie2000(LabColor(*color1), LabColor(*color2))
 
 
 def name(color_id):
