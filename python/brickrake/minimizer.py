@@ -3,6 +3,7 @@ Algorithms for minimizing cost of a purchase
 """
 import copy
 import itertools
+import math
 
 import numpy as np
 import pandas
@@ -87,8 +88,8 @@ def covers(wanted_parts, available_parts):
       return False
   return True
 
+################################################################################
 
-# TODO this doesn't work at all
 def greedy(wanted_parts, price_guide):
   """Greedy Set-Cover algorithm to minimize number of stores purchased from.
   Disregards prices in decisions."""
@@ -186,3 +187,77 @@ def greedy(wanted_parts, price_guide):
     'allocation': result,
     'store_ids': store_ids
   }]
+
+################################################################################
+
+def scip(wanted_parts, available_parts):
+  from zibopt import scip
+
+  kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
+  kf2 = lambda x: (x['ItemID'], x['ColorID'])
+
+  available_by_store = utils.groupby(available_parts, lambda x: x['store_id'])
+
+  solver = scip.solver()
+
+  item_variables = {}
+  all_variables = []
+
+  # for every store
+  print 'building...'
+  for (store_id, inventory) in available_by_store.iteritems():
+    # for every lot in that store
+    for lot in inventory:
+      store_id = lot['store_id']
+      quantity = lot['quantity_available']
+      cost     = lot['cost_per_unit']
+
+      # a variable for how much to buy of this lot
+      v = solver.variable(vartype=scip.CONTINUOUS,
+                          coefficient=cost)
+
+      # a constraint for how much can be bought
+      solver += (v >= 0)
+      solver += (v <= quantity)
+
+      item_variables[kf1(lot)]  = item_variables.get(kf1(lot), [])  + [v]
+
+      all_variables.append({
+        'store_id': store_id,
+        'item_id': lot['item_id'],
+        'wanted_color_id': lot['wanted_color_id'],
+        'color_id': lot['color_id'],
+        'variable': v,
+        'cost_per_unit': cost
+      })
+
+    # a variable for if anything was bought from this store
+    # TODO don't know how to do this :(
+
+  # for every wanted lot
+  for lot in wanted_parts:
+    # a constraint saying amount bought == wanted amount
+    variables = item_variables[kf2(lot)]
+    solver += (sum(variables) >= lot['Qty'])
+
+  # minimize sum of costs of items bought + shipping costs
+  print 'solving...'
+  solution = solver.minimize()
+  result = []
+  if solution:
+    for lot in all_variables:
+      lot['quantity'] = int(math.ceil(solution[lot['variable']]))
+      del lot['variable']
+      if lot['quantity'] > 0:
+        result.append(lot)
+
+    cost = sum(e['quantity'] * e['cost_per_unit'] for e in result)
+    store_ids = list(set(e['store_id'] for e in result))
+    return [{
+      'cost': cost,
+      'allocation': result,
+      'store_ids': store_ids
+    }]
+  else:
+    print 'No solution :('
+    return []

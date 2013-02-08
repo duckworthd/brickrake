@@ -1,0 +1,3 @@
+- ILP solvers using Gurobi or SCIP
+- multiple currencies?
+- CIEDE2000 instead of CIE76 for similar colors

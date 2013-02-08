@@ -93,8 +93,8 @@ def minimize(args):
 
   # decide on which stores to use
 
-  ### GREEDY ###
-  solution = minimizer.greedy(wanted_parts, available_parts)[0]
+  ### Integer Linear Programming ###
+  solution = minimizer.scip(wanted_parts, available_parts)[0]
   io.save_solution(open(args.output + ".json", 'w'), solution)
 
   wanted_by_item = utils.groupby(wanted_parts,
@@ -106,10 +106,24 @@ def minimize(args):
   stores = set(e['store_id'] for e in solution['allocation'])
   cost = solution['cost']
   print 'Total cost: $%.2f | n_stores: %d' % (cost, len(stores))
-  print 'Most expensive items:'
-  by_price = sorted(solution['allocation'], key=lambda x: -1 * x['cost_per_unit'])
-  for item in by_price[0:50]:
-    print item
+
+  # ### GREEDY ###
+  # solution = minimizer.greedy(wanted_parts, available_parts)[0]
+  # io.save_solution(open(args.output + ".json", 'w'), solution)
+
+  # wanted_by_item = utils.groupby(wanted_parts,
+  #                                lambda x: (x['ItemID'], x['ColorID']))
+  # available_by_item = utils.groupby(solution['allocation'],
+  #                                   lambda x: (x['item_id'], x['wanted_color_id']))
+
+  # # print outs
+  # stores = set(e['store_id'] for e in solution['allocation'])
+  # cost = solution['cost']
+  # print 'Total cost: $%.2f | n_stores: %d' % (cost, len(stores))
+  # print 'Most expensive items:'
+  # by_price = sorted(solution['allocation'], key=lambda x: -1 * x['cost_per_unit'])
+  # for item in by_price[0:50]:
+  #   print item
 
   # ### BRUTE FORCE ###
   # for k in range(1, args.max_n_stores):
