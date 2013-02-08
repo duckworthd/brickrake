@@ -190,7 +190,7 @@ def greedy(wanted_parts, price_guide):
 
 ################################################################################
 
-def scip(wanted_parts, available_parts):
+def scip(wanted_parts, available_parts, shipping_cost=10.0):
   from zibopt import scip
 
   kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
@@ -206,19 +206,24 @@ def scip(wanted_parts, available_parts):
   # for every store
   print 'building...'
   for (store_id, inventory) in available_by_store.iteritems():
+    # a variable for if anything was bought from this store. if 1, then pay
+    # shipping cost; if 0, then everything lot in it has 0 quantity available
+    use_store = solver.variable(vartype=scip.BINARY,
+                                coefficient=shipping_cost)
+
     # for every lot in that store
     for lot in inventory:
       store_id = lot['store_id']
       quantity = lot['quantity_available']
-      cost     = lot['cost_per_unit']
+      unit_cost= lot['cost_per_unit']
 
       # a variable for how much to buy of this lot
       v = solver.variable(vartype=scip.CONTINUOUS,
-                          coefficient=cost)
+                          coefficient=unit_cost)
 
       # a constraint for how much can be bought
       solver += (v >= 0)
-      solver += (v <= quantity)
+      solver += (v <= quantity * use_store)
 
       item_variables[kf1(lot)]  = item_variables.get(kf1(lot), [])  + [v]
 
@@ -228,11 +233,8 @@ def scip(wanted_parts, available_parts):
         'wanted_color_id': lot['wanted_color_id'],
         'color_id': lot['color_id'],
         'variable': v,
-        'cost_per_unit': cost
+        'cost_per_unit': unit_cost
       })
-
-    # a variable for if anything was bought from this store
-    # TODO don't know how to do this :(
 
   # for every wanted lot
   for lot in wanted_parts:
@@ -261,3 +263,17 @@ def scip(wanted_parts, available_parts):
   else:
     print 'No solution :('
     return []
+
+
+def is_complete(wanted_list, allocation):
+  """Can we buy everything wanted using `allocation`?"""
+  kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
+  kf2 = lambda x: (x['ItemID'], x['ColorID'])
+  wanted_by_item = utils.groupby(copy.deepcopy(wanted_list), kf2)
+  wanted_by_item = dict( (k, sum(e['Qty'] for e in v))
+                          for (k, v) in wanted_by_item.iteritems() )
+
+  for item in allocation:
+    wanted_by_item[kf1(item)] -= item['quantity']
+
+  return all(e == 0 for e in wanted_by_item.values())

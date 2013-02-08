@@ -95,6 +95,7 @@ def minimize(args):
 
   ### Integer Linear Programming ###
   solution = minimizer.scip(wanted_parts, available_parts)[0]
+  assert minimizer.is_complete(wanted_parts, solution['allocation'])
   io.save_solution(open(args.output + ".json", 'w'), solution)
 
   wanted_by_item = utils.groupby(wanted_parts,
