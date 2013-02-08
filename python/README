@@ -1,0 +1,114 @@
+Dependencies
+============
+
+- numpy 1.6.2
+- pandas 0.10.1
+- python-zibopt 0.7.3
+  - ziboptsuite 2.1.1
+- Beautiful Soup 4.1.3
+- colormath 1.0.8
+
+Installation
+============
+
+1. Install python libraries
+
+  $ sudo pip install numpy pandas beautifulsoup4 colormath python-algebraic
+
+2. Build and install ziboptsuite
+
+- Download ZIB Optimization Suite v2.1.1 source code from [1] and put it in
+  ~/src
+
+[1] http://scip.zib.de/download.shtml
+
+$ ### build ziboptsuite ###
+$ mkdir ~/src
+$ mkdir ~/lib
+$ cd ~/src
+$ tar xvfz ziboptsuite-2.1.1.tgz
+$ cd ziboptsuite-2.1.1
+$ make ziboptlib SHARED=true ZIMPL=false ZLIB=false READLINE=false
+$
+$ ### ** Extracting SoPlex archive "/Users/duckworthd/src/ziboptsuite-2.1.1/soplex-1.6.0.tgz".
+$ ### ** Extracting ZIMPL archive "/Users/duckworthd/src/ziboptsuite-2.1.1/zimpl-3.2.0.tgz".
+$ ### ** Extracting SCIP archive "/Users/duckworthd/src/ziboptsuite-2.1.1/scip-2.1.1.tgz".
+$ ### ** compile libraries statically with compiler flag -fPIC
+$ ### ...
+$ ### ...
+$ ### ...
+$ ### ** Build complete.
+$ ### ** Find your SCIP binary in "/Users/duckworthd/src/ziboptsuite-2.1.1/scip-2.1.1/bin".
+$ ### ** Enter "make test" to solve a number of MIPLIB instances in order to verify that SCIP runs correctly.
+$ ### 
+$ ### -> generating library lib/libzibopt-2.1.1.darwin.x86_64.gnu.opt.so
+
+
+$ ### install ziboptsuite ###
+$ cp lib/libzibopt-2.1.1.linux.x86_64.gnu.opt.so ~/lib/
+$ ln -s ~/lib/libzibopt-2.1.1.linux.x86_64.gnu.opt.so ~/lib/libzibopt.so
+$ export LD_LIBRARY_PATH=$HOME/lib
+$ export LIBRARY_PATH=$HOME/lib
+$ export C_INCLUDE_PATH=~/src/ziboptsuite-2.1.1/scip-2.1.1/src/
+
+$ ### build python-zibopt revision 245 ###
+$ cd ~/src
+$ svn checkout -r 245 http://python-zibopt.googlecode.com/svn/ python-zibopt
+$ cd python-zibopt/trunk
+$ python setup.py build
+$ python setup.py test
+$ ### running test
+$ ### running egg_info
+$ ### writing requirements to src/python_zibopt.egg-info/requires.txt
+$ ### writing src/python_zibopt.egg-info/PKG-INFO
+$ ### ...
+$ ### ...
+$ ### ...
+$ ### Sets and gets variable branching priority ... ok
+$ ### 
+$ ### ----------------------------------------------------------------------
+$ ### Ran 49 tests in 0.389s
+$ ### 
+$ ### OK
+$
+$ python examples/sudoku.py
+$ ### [3, 1, 8, 6, 9, 2, 7, 4, 5]
+$ ### [7, 6, 4, 3, 5, 1, 8, 9, 2]
+$ ### [2, 9, 5, 8, 7, 4, 3, 1, 6]
+$ ### [6, 2, 9, 5, 1, 7, 4, 8, 3]
+$ ### [1, 4, 7, 2, 8, 3, 5, 6, 9]
+$ ### [8, 5, 3, 4, 6, 9, 1, 2, 7]
+$ ### [5, 7, 2, 1, 4, 6, 9, 3, 8]
+$ ### [4, 8, 6, 9, 3, 5, 2, 7, 1]
+$ ### [9, 3, 1, 7, 2, 8, 6, 5, 4]
+
+if you have issues during the build stage in finding <blockmemshell/memory.h>,
+then setup.py is ignoring your C_INCLUDE_PATH and LIBRARY_PATH variables.
+Change the following function in setup.py from this,
+
+    def zibopt_ext(name, c_file):
+        # ZIBOpt headers and shared objects will must be in the user's
+        # C_INCLUDE_PATH and LIBRARY_PATH, respectively.
+        return Extension('zibopt.%s' % name, 
+            sources = ['src/ext/%s' % c_file],
+            libraries = ['zibopt']
+        )
+
+to this,
+
+    from os.path import expanduser
+
+    def zibopt_ext(name, c_file):
+        # ZIBOpt headers and shared objects will must be in the user's
+        # C_INCLUDE_PATH and LIBRARY_PATH, respectively.
+        return Extension('zibopt.%s' % name, 
+            sources = ['src/ext/%s' % c_file],
+            include_dirs=[expanduser('~/src/ziboptsuite-2.1.1/scip-2.1.1/src/')],
+            library_dirs=[expanduser('~/lib')],
+            libraries = ['zibopt']
+        )
+
+then execute "python setup.py build" again
+
+$ ### install python-zibopt ###
+$ sudo python setup.py install

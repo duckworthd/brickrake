@@ -1,3 +1,2 @@
-- ILP solvers using Gurobi or SCIP
+- ILP solvers using Gurobi
 - multiple currencies?
-- CIEDE2000 instead of CIE76 for similar colors
