@@ -8,6 +8,8 @@ import xml.etree.ElementTree as etree
 import numpy as np
 import pandas
 
+import utils
+
 
 # conversion functions for specific fields in a BSX file
 CONVERT = {
@@ -35,7 +37,16 @@ def load_bsx(f):
       value = CONVERT.get(child.tag, lambda x: x)(child.text)
       item_dict[tag] = value
     items.append(item_dict)
-  return items
+
+  # sometimes there are multiple wanted lots with the same ItemID and ColorID.
+  # Consolidate them together now.
+  by_item = utils.groupby(items, lambda x: (x['ItemID'], x['ColorID']))
+  result = []
+  for ((item_id, color_id), same) in by_item.iteritems():
+    prototype = same[0]
+    prototype['Qty'] = sum(e['Qty'] for e in same)
+    result.append(prototype)
+  return result
 
 
 def save_bsx(f, allocation):
@@ -75,10 +86,11 @@ def save_bsx_per_vendor(folder, solution):
     pass
 
   # create XML
-  allocation = pandas.DataFrame.from_records(solution['allocation'])
-  for (store_id, group) in allocation.groupby('store_id'):
+  allocation = utils.groupby(solution['allocation'], lambda x: x['store_id'])
+  for (store_id, group) in allocation.iteritems():
     fname = os.path.join(folder, str(store_id) + '.xml')
-    save_bsx(open(fname, 'w'), [row.to_dict() for (_, row) in group.T.iteritems()])
+    with open(fname, 'w') as f:
+      save_bsx(f, group)
 
 
 def load_price_guide(f):

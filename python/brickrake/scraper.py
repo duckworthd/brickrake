@@ -90,14 +90,8 @@ def price_guide(item, allowed_stores=None, max_cost_quantile=None):
   return results
 
 
-def store_info():
-  """Fetch metadata for all stores
-
-  Parameters
-  ----------
-  store_id : int or None
-      store id code.  If none, get store info for ALL stores
-  """
+def store_info(country=None):
+  """Fetch metadata for all stores"""
   browse_page = utils.beautiful_soup('http://www.bricklink.com/browse.asp')
   country_links = (
     browse_page
@@ -110,6 +104,10 @@ def store_info():
   for country_link in country_links:
     country_name = country_link.text
     country_id = utils.get_params(country_link['href'])['countryID']
+
+    # skip this country link if we're only gathering data on one country
+    if country is not None and country_id != country:
+      continue
 
     country_page = utils.beautiful_soup('http://www.bricklink.com' + country_link['href'])
     store_links = country_page.find_all('a', href=re.compile('store.asp'))
@@ -133,6 +131,7 @@ def store_info():
         'seller_name': seller_name,
         'feedback': int(feedback)
       }
+      print entry
 
       result.append(entry)
 

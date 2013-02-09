@@ -198,7 +198,7 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
 
   available_by_store = utils.groupby(available_parts, lambda x: x['store_id'])
 
-  solver = scip.solver()
+  solver = scip.solver(quiet=False)
 
   item_variables = {}
   all_variables = []
@@ -207,8 +207,8 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
   print 'building...'
   for (store_id, inventory) in available_by_store.iteritems():
     # a variable for if anything was bought from this store. if 1, then pay
-    # shipping cost and all store inventory is available; if 0, then every
-    # lot in it has 0 quantity available
+    # shipping cost and all store inventory is available; if 0, then don't pay
+    # for shipping and every lot in it has 0 quantity available
     use_store = solver.variable(vartype=scip.BINARY,
                                 coefficient=shipping_cost)
 
@@ -220,13 +220,18 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
 
       # a variable for how much to buy of this lot
       v = solver.variable(vartype=scip.CONTINUOUS,
-                          coefficient=unit_cost)
+                          coefficient=unit_cost,
+                          lower=0,
+                          upper=quantity)
 
       # a constraint for how much can be bought
-      solver += (v >= 0)
+      # solver += (v >= 0)  # implicitly stated with lower=0
       solver += (v <= quantity * use_store)
 
-      item_variables[kf1(lot)]  = item_variables.get(kf1(lot), [])  + [v]
+      if kf1(lot) in item_variables:
+        item_variables[kf1(lot)].append(v)
+      else:
+        item_variables[kf1(lot)] = [v]
 
       all_variables.append({
         'store_id': store_id,
@@ -245,9 +250,9 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
 
   # minimize sum of costs of items bought + shipping costs
   print 'solving...'
-  solution = solver.minimize()
-  result = []
+  solution = solver.minimize(gap=0.05)
   if solution:
+    result = []
     for lot in all_variables:
       lot['quantity'] = int(math.ceil(solution[lot['variable']]))
       del lot['variable']
@@ -266,8 +271,88 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
     return []
 
 
-def is_complete(wanted_list, allocation):
-  """Can we buy everything wanted using `allocation`?"""
+def gurobi(wanted_list, available_parts, shipping_cost=10.0):
+  from gurobipy import *
+
+  m = Model()
+
+  item_variables = {}
+  all_variables = []
+
+  # for every store
+  print 'building...'
+  for (store_id, inventory) in available_by_store.iteritems():
+    # a variable for if anything was bought from this store. if 1, then pay
+    # shipping cost and all store inventory is available; if 0, then don't pay
+    # for shipping and every lot in it has 0 quantity available
+    use_store = m.addVar(0.0, 1.0, shipping_cost, GRB.BINARY)
+
+    # for every lot in that store
+    for lot in inventory:
+      store_id = lot['store_id']
+      quantity = lot['quantity_available']
+      unit_cost= lot['cost_per_unit']
+      item_id  = lot['item_id']
+      color_id = lot['color_id']
+
+      # a variable for how much to buy of this lot
+      v = m.addVar(0.0, quantity, unit_cost, GRB.CONTINUOUS)
+
+      # a constraint for how much can be bought
+      m.addConstr(LinExpr([1.0, -1 * quantity], [v, use_store]),
+                  GRB.LESS_EQUAL, 0.0)
+
+      if kf1(lot) in item_variables:
+        item_variables[kf1(lot)].append(v)
+      else:
+        item_variables[kf1(lot)] = [v]
+
+      all_variables.append({
+        'store_id': store_id,
+        'item_id': lot['item_id'],
+        'wanted_color_id': lot['wanted_color_id'],
+        'color_id': lot['color_id'],
+        'variable': v,
+        'cost_per_unit': unit_cost
+      })
+
+  # for every wanted lot
+  for lot in wanted_parts:
+    # a constraint saying amount bought >= wanted amount
+    variables = item_variables[kf2(lot)]
+    constants = len(variables) * [1.0]
+    m.addConstr(LinExpr(constants, variables),
+                GRB.GREATER_EQUAL, lot['Qty'])
+
+  # minimize sum of costs of items bought + shipping costs
+  print 'solving...'
+  m.optimize()
+
+  # get results
+  if m.ObjVal < float('inf'):
+    result = []
+    for lot in all_variables:
+      v = lot['variable']
+      lot['quantity'] = int(math.ceil(v.X))
+      del lot['variable']
+      if lot['quantity'] > 0:
+        result.append(lot)
+
+    cost = sum(e['quantity'] * e['cost_per_unit'] for e in result)
+    store_ids = list(set(e['store_id'] for e in result))
+    return [{
+      'cost': cost,
+      'allocation': result,
+      'store_ids': store_ids
+    }]
+  else:
+    print 'No solution :('
+    return []
+
+################################################################################
+
+def unsatisified(wanted_list, allocation):
+  """What do we still need to buy?"""
   kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
   kf2 = lambda x: (x['ItemID'], x['ColorID'])
   wanted_by_item = utils.groupby(copy.deepcopy(wanted_list), kf2)
@@ -276,5 +361,10 @@ def is_complete(wanted_list, allocation):
 
   for item in allocation:
     wanted_by_item[kf1(item)] -= item['quantity']
+  return dict( (k, v) for (k, v) in wanted_by_item.iteritems()
+               if v > 0 )
 
-  return all(e == 0 for e in wanted_by_item.values())
+
+def is_complete(wanted_parts, allocation):
+  """Do we still need to buy something?"""
+  return len(unsatisified(wanted_list, allocation)) == 0

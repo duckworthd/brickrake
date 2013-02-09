@@ -1,2 +1,3 @@
 - ILP solvers using Gurobi
+  - code written, but gurobipy only works with OSX's built-in python 2.7
 - multiple currencies?
