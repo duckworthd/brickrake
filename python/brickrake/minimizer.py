@@ -271,23 +271,28 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
     return []
 
 
-def gurobi(wanted_list, available_parts, shipping_cost=10.0):
+def gurobi(wanted_parts, available_parts, shipping_cost=10.0):
   from gurobipy import *
+
+  kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
+  kf2 = lambda x: (x['ItemID'], x['ColorID'])
+
+  available_by_store = utils.groupby(available_parts, lambda x: x['store_id'])
 
   m = Model()
 
-  item_variables = {}
-  all_variables = []
+  store_variables = {}
+  item_variables  = {}
+  all_variables   = []
 
   # for every store
-  print 'building...'
   for (store_id, inventory) in available_by_store.iteritems():
+
     # a variable for if anything was bought from this store. if 1, then pay
     # shipping cost and all store inventory is available; if 0, then don't pay
     # for shipping and every lot in it has 0 quantity available
-    use_store = m.addVar(0.0, 1.0, shipping_cost, GRB.BINARY)
+    store_variables[store_id] = m.addVar(0.0, 1.0, shipping_cost, GRB.BINARY)
 
-    # for every lot in that store
     for lot in inventory:
       store_id = lot['store_id']
       quantity = lot['quantity_available']
@@ -298,23 +303,36 @@ def gurobi(wanted_list, available_parts, shipping_cost=10.0):
       # a variable for how much to buy of this lot
       v = m.addVar(0.0, quantity, unit_cost, GRB.CONTINUOUS)
 
-      # a constraint for how much can be bought
-      m.addConstr(LinExpr([1.0, -1 * quantity], [v, use_store]),
-                  GRB.LESS_EQUAL, 0.0)
-
+      # keep a mapping from (wanted item, wanted color) to lots
       if kf1(lot) in item_variables:
         item_variables[kf1(lot)].append(v)
       else:
         item_variables[kf1(lot)] = [v]
 
+      # keep a list of all lots
       all_variables.append({
         'store_id': store_id,
         'item_id': lot['item_id'],
         'wanted_color_id': lot['wanted_color_id'],
         'color_id': lot['color_id'],
         'variable': v,
+        'quantity_available': quantity,
         'cost_per_unit': unit_cost
       })
+
+  # actually put the variables into the model
+  m.update()
+
+  # for every lot in every store
+  for lot in all_variables:
+    use_store = store_variables[lot['store_id']]
+    quantity  = lot['quantity_available']
+    unit_cost = lot['cost_per_unit']
+    v         = lot['variable']
+
+    # a constraint for how much can be bought
+    m.addConstr(LinExpr([1.0, -1 * quantity], [v, use_store]),
+                GRB.LESS_EQUAL, 0.0)
 
   # for every wanted lot
   for lot in wanted_parts:
@@ -326,17 +344,24 @@ def gurobi(wanted_list, available_parts, shipping_cost=10.0):
 
   # minimize sum of costs of items bought + shipping costs
   print 'solving...'
+  m.setParam(GRB.param.MIPGap, 0.05)  # stop when duality gap <= 5%
   m.optimize()
 
   # get results
   if m.ObjVal < float('inf'):
     result = []
     for lot in all_variables:
+      # get variable out
       v = lot['variable']
-      lot['quantity'] = int(math.ceil(v.X))
       del lot['variable']
+
+      # save quantity to buy if it's >= 0
+      lot['quantity'] = int(math.ceil(v.X))
       if lot['quantity'] > 0:
         result.append(lot)
+
+      # double check that the solver didn't do anything silly
+      assert lot['quantity'] <= lot['quantity_available'], 'wtf?'
 
     cost = sum(e['quantity'] * e['cost_per_unit'] for e in result)
     store_ids = list(set(e['store_id'] for e in result))

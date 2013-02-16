@@ -17,10 +17,11 @@ Installation
 
 2. Build and install ziboptsuite
 
-- Download ZIB Optimization Suite v2.1.1 source code from [1] and put it in
-  ~/src
+- Download ZIB Optimization Suite v2.1.1 source code from [1] and python-zibopt
+  v0.7.2 source code from [2] and put them both in ~/src
 
 [1] http://scip.zib.de/download.shtml
+[2] http://code.google.com/p/python-zibopt/downloads/list
 
 $ ### build ziboptsuite ###
 $ mkdir ~/src
@@ -53,8 +54,8 @@ $ export C_INCLUDE_PATH=~/src/ziboptsuite-2.1.1/scip-2.1.1/src/
 
 $ ### build python-zibopt revision 245 ###
 $ cd ~/src
-$ svn checkout -r 245 http://python-zibopt.googlecode.com/svn/ python-zibopt
-$ cd python-zibopt/trunk
+$ tar zxvf python-zibopt-0.7.2.dev-r226.tar.gz
+$ cd python-zibopt-0.7.2.dev-r226
 $ python setup.py build
 $ python setup.py test
 $ ### running test
@@ -70,17 +71,6 @@ $ ### ----------------------------------------------------------------------
 $ ### Ran 49 tests in 0.389s
 $ ### 
 $ ### OK
-$
-$ python examples/sudoku.py
-$ ### [3, 1, 8, 6, 9, 2, 7, 4, 5]
-$ ### [7, 6, 4, 3, 5, 1, 8, 9, 2]
-$ ### [2, 9, 5, 8, 7, 4, 3, 1, 6]
-$ ### [6, 2, 9, 5, 1, 7, 4, 8, 3]
-$ ### [1, 4, 7, 2, 8, 3, 5, 6, 9]
-$ ### [8, 5, 3, 4, 6, 9, 1, 2, 7]
-$ ### [5, 7, 2, 1, 4, 6, 9, 3, 8]
-$ ### [4, 8, 6, 9, 3, 5, 2, 7, 1]
-$ ### [9, 3, 1, 7, 2, 8, 6, 5, 4]
 
 if you have issues during the build stage in finding <blockmemshell/memory.h>,
 then setup.py is ignoring your C_INCLUDE_PATH and LIBRARY_PATH variables.

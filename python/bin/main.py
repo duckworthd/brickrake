@@ -102,7 +102,7 @@ def minimize(args):
   if args.algorithm in ['ilp', 'greedy']:
     if args.algorithm == 'ilp':
       ### Integer Linear Programming ###
-      solution = minimizer.scip(
+      solution = minimizer.gurobi(
           wanted_parts,
           available_parts,
           shipping_cost=args.shipping_cost
