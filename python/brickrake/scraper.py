@@ -69,7 +69,8 @@ def price_guide(item, allowed_stores=None, max_cost_quantile=None):
 
       # remove items from disallowed stores
       if allowed_stores is not None:
-        new = filter(lambda x: store_id in allowed_stores, new)
+        allowed_stores = set(allowed_stores)
+        new = filter(lambda x: x['store_id'] in allowed_stores, new)
 
       # remove items that cost too much
       if max_cost_quantile is not None:

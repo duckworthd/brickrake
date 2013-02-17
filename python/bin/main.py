@@ -14,7 +14,10 @@ from brickrake import utils
 def price_guide(args):
   """Scrape pricing information for all wanted parts"""
   # load in wanted parts
-  wanted_parts = io.load_bsx(open(args.parts_list))
+  if args.parts_list.endswith(".bsx"):
+    wanted_parts = io.load_bsx(open(args.parts_list))
+  else:
+    wanted_parts = io.load_xml(open(args.parts_list))
   print 'Loaded %d different parts' % len(wanted_parts)
 
   if args.store_list is not None:
@@ -33,7 +36,21 @@ def price_guide(args):
       print 'Only allowing stores with %d feedback' % (args.feedback,)
       allowed_stores = filter(lambda x: x['feedback'] >= args.feedback, allowed_stores)
 
+    if args.include is not None:
+      includes = args.include.strip().split(",")
+      includes = map(lambda x: int(x), includes)
+      print 'Forcing inclusion of: %s' % (includes,)
+      for store in includes:
+        allowed_stores.append({'store_id': store})
+
+    if args.exclude is not None:
+      excludes = set(args.exclude.strip().split(","))
+      excludes = map(lambda x: int(x), excludes)
+      print 'Forcing exclusion of: %s' % (excludes,)
+      allowed_stores = filter(lambda x: not (x['store_id'] in excludes), allowed_stores)
+
     allowed_stores = map(lambda x: x['store_id'], allowed_stores)
+    allowed_stores = list(set(allowed_stores))
     print 'Using %d stores' % len(allowed_stores)
 
   else:
@@ -91,8 +108,11 @@ def price_guide(args):
 def minimize(args):
   """Minimize the cost of a purchase"""
   # load in parts lists, pricing data
-  wanted_parts = io.load_bsx(open(args.parts_list))
-  print 'Loaded %d wanted lots' % len(wanted_parts)
+  if args.parts_list.endswith(".bsx"):
+    wanted_parts = io.load_bsx(open(args.parts_list))
+  else:
+    wanted_parts = io.load_xml(open(args.parts_list))
+  print 'Loaded %d different parts' % len(wanted_parts)
 
   available_parts = io.load_price_guide(open(args.price_guide))
   n_available = len(available_parts)
@@ -154,7 +174,7 @@ def wanted_list(args):
   """Create BrickLink Wanted Lists for each store"""
   # load recommendation
   recommendation = io.load_solution(open(args.recommendation))
-  io.save_bsx_per_vendor(args.output, recommendation)
+  io.save_xml_per_vendor(args.output, recommendation)
 
 
 def store_list(args):
@@ -177,6 +197,10 @@ if __name__ == '__main__':
       help='limit search to stores in a particular country')
   parser_pg.add_argument('--feedback', default=0, type=int,
       help='limit search to stores with enough feedback')
+  parser_pg.add_argument('--include', default=None,
+      help='Force inclusion of the following comma-separated store IDs')
+  parser_pg.add_argument('--exclude', default=None,
+      help='Force exclusion of the following comma-separated store IDs')
   parser_pg.add_argument('--max-price-quantile', default=1.0, type=float,
       help=('Ignore lots that cost more than this quantile' +
             ' of the price distribution per item'))
