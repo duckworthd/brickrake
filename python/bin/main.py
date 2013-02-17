@@ -20,49 +20,13 @@ def price_guide(args):
     wanted_parts = io.load_xml(open(args.parts_list))
   print 'Loaded %d different parts' % len(wanted_parts)
 
-  if args.store_list is not None:
-    # load in store metadata
-    store_metadata = io.load_store_metadata(open(args.store_list))
-    print 'Loaded metadata for %d stores' % len(store_metadata)
-
-    allowed_stores = [store for store in store_metadata]
-
-    # select which stores to get parts from
-    if args.country is not None:
-      print 'Only allowing stores from %s' % (args.country,)
-      allowed_stores = filter(lambda x: x['country_id'] == args.country, allowed_stores)
-
-    if args.feedback is not None:
-      print 'Only allowing stores with %d feedback' % (args.feedback,)
-      allowed_stores = filter(lambda x: x['feedback'] >= args.feedback, allowed_stores)
-
-    if args.include is not None:
-      includes = args.include.strip().split(",")
-      includes = map(lambda x: int(x), includes)
-      print 'Forcing inclusion of: %s' % (includes,)
-      for store in includes:
-        allowed_stores.append({'store_id': store})
-
-    if args.exclude is not None:
-      excludes = set(args.exclude.strip().split(","))
-      excludes = map(lambda x: int(x), excludes)
-      print 'Forcing exclusion of: %s' % (excludes,)
-      allowed_stores = filter(lambda x: not (x['store_id'] in excludes), allowed_stores)
-
-    allowed_stores = map(lambda x: x['store_id'], allowed_stores)
-    allowed_stores = list(set(allowed_stores))
-    print 'Using %d stores' % len(allowed_stores)
-
-  else:
-    allowed_stores = None
-    print 'Using all stores'
-
   # get prices for available parts
   fmt = "{i:4d} {status:10s} {name:60s} {color:30s} {quantity:5d}"
   print "{i:4s} {status:10s} {name:60s} {color:30s} {quantity:5s}" \
       .format(i="i", status="status", name="name", color="color", quantity="qty")
   print (4 + 1 + 10 + 1 + 60 + 1 + 30 + 1 + 5) * "-"
 
+  # load half-complete price guide if available
   if args.resume:
     old_parts = io.load_price_guide(open(args.resume))
     old_parts = utils.groupby(old_parts, lambda x: (x['item_id'], x['wanted_color_id']))
@@ -71,6 +35,7 @@ def price_guide(args):
 
   available_parts = []
 
+  # for each wanted lot
   for (i, item) in enumerate(wanted_parts):
     # skip this item if we already have enough
     matching = old_parts.get( (item['ItemID'], item['ColorID']), [])
@@ -85,8 +50,7 @@ def price_guide(args):
     else:
       try:
         # fetch price data for this item in the closest available color
-        new = scraper.price_guide(item, allowed_stores=allowed_stores,
-                                  max_cost_quantile=args.max_price_quantile)
+        new = scraper.price_guide(item, max_cost_quantile=args.max_price_quantile)
         available_parts.extend(new)
 
         # print out status message
@@ -107,24 +71,62 @@ def price_guide(args):
 
 def minimize(args):
   """Minimize the cost of a purchase"""
-  # load in parts lists, pricing data
+  ################# Loading ##################################
+  # load in wanted parts lists
   if args.parts_list.endswith(".bsx"):
     wanted_parts = io.load_bsx(open(args.parts_list))
   else:
     wanted_parts = io.load_xml(open(args.parts_list))
   print 'Loaded %d different parts' % len(wanted_parts)
 
+  # load in pricing data
   available_parts = io.load_price_guide(open(args.price_guide))
   n_available = len(available_parts)
   n_stores = len(set(e['store_id'] for e in available_parts))
   print 'Loaded %d available lots from %d stores' % (n_available, n_stores)
 
+  # load in store metadata
+  if args.store_list is not None:
+    store_metadata = io.load_store_metadata(open(args.store_list))
+    print 'Loaded metadata for %d stores' % len(store_metadata)
+
+    ################# Filtering Stores #########################
+    # select which stores to get parts from
+    allowed_stores = list(store_metadata)
+    if args.source_country is not None:
+      print 'Only allowing stores from %s' % (args.source_country,)
+      allowed_stores = filter(lambda x: x['country_name'] == args.source_country, allowed_stores)
+
+    if args.target_country is not None:
+      print 'Only allowing stores that ship to %s' % (args.target_country,)
+      allowed_stores = [s for s in allowed_stores
+                        if args.target_country in s['ships']
+                        or (len(s['ships']) == 1 and s['ships'][0] == 'All Countries WorldWide')]
+
+    if args.feedback is not None and args.feedback > 0:
+      print 'Only allowing stores with feedback >= %d' % (args.feedback,)
+      allowed_stores = filter(lambda x: x['feedback'] >= args.feedback, allowed_stores)
+
+    if args.exclude is not None:
+      excludes = set(args.exclude.strip().split(","))
+      excludes = map(lambda x: int(x), excludes)
+      print 'Forcing exclusion of: %s' % (excludes,)
+      allowed_stores = filter(lambda x: not (x['store_id'] in excludes), allowed_stores)
+
+    store_ids = map(lambda x: x['store_id'], allowed_stores)
+    store_ids = list(set(store_ids))
+    print 'Using %d stores' % len(store_ids)
+
+    available_parts = filter(lambda x: x['store_id'] in store_ids, available_parts)
+
+  ################# Minimization #############################
   if args.algorithm in ['ilp', 'greedy']:
     if args.algorithm == 'ilp':
       ### Integer Linear Programming ###
       solution = minimizer.gurobi(
           wanted_parts,
           available_parts,
+          allowed_stores,
           shipping_cost=args.shipping_cost
       )[0]
     elif args.algorithm == 'greedy':
@@ -191,16 +193,6 @@ if __name__ == '__main__':
       help="Download pricing information from BrickLink")
   parser_pg.add_argument('--parts-list', required=True,
       help='BSX file containing desired parts')
-  parser_pg.add_argument('--store-list', default=None,
-      help='JSON file containing store metadata')
-  parser_pg.add_argument('--country', default=None,
-      help='limit search to stores in a particular country')
-  parser_pg.add_argument('--feedback', default=0, type=int,
-      help='limit search to stores with enough feedback')
-  parser_pg.add_argument('--include', default=None,
-      help='Force inclusion of the following comma-separated store IDs')
-  parser_pg.add_argument('--exclude', default=None,
-      help='Force exclusion of the following comma-separated store IDs')
   parser_pg.add_argument('--max-price-quantile', default=1.0, type=float,
       help=('Ignore lots that cost more than this quantile' +
             ' of the price distribution per item'))
@@ -216,6 +208,16 @@ if __name__ == '__main__':
       help='BSX file containing desired parts')
   parser_mn.add_argument('--price-guide', required=True,
       help='Pricing information output by "brickrake price_guide"')
+  parser_mn.add_argument('--store-list', default=None,
+      help='JSON file containing store metadata. If using algorithm=ilp, this is required')
+  parser_mn.add_argument('--source-country', default=None,
+      help='limit search to stores in a particular country')
+  parser_mn.add_argument('--target-country', default=None,
+      help='limit search to stores that ship to a particular country')
+  parser_mn.add_argument('--feedback', default=0, type=int,
+      help='limit search to stores with enough feedback')
+  parser_mn.add_argument('--exclude', default=None,
+      help='Force exclusion of the following comma-separated store IDs')
   parser_mn.add_argument('--algorithm', default='ilp',
       choices=['ilp', 'brute-force', 'greedy'],
       help='Algorithm used to select vendors')
@@ -230,7 +232,7 @@ if __name__ == '__main__':
   parser_mn.set_defaults(func=minimize)
 
   parser_wl = subparsers.add_parser("wanted_list",
-      help="Create BrickLink Wanted Lists for each vendor")
+      help="Create a BrickLink Wanted List")
   parser_wl.add_argument("--recommendation", required=True,
       help='JSON file output by "brickrake minimize"')
   parser_wl.add_argument("--output", required=True,

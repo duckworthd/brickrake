@@ -10,7 +10,7 @@ import color
 import utils
 
 
-def price_guide(item, allowed_stores=None, max_cost_quantile=None):
+def price_guide(item, max_cost_quantile=None):
   """Fetch pricing info for an item"""
   results = []
 
@@ -67,13 +67,8 @@ def price_guide(item, allowed_stores=None, max_cost_quantile=None):
             'cost_per_unit': cost_per_unit
           })
 
-      # remove items from disallowed stores
-      if allowed_stores is not None:
-        allowed_stores = set(allowed_stores)
-        new = filter(lambda x: x['store_id'] in allowed_stores, new)
-
       # remove items that cost too much
-      if max_cost_quantile is not None:
+      if max_cost_quantile is not None and max_cost_quantile < 1.0:
         observed_prices = [e['quantity_available'] * [e['cost_per_unit']] for e in new]
         observed_prices = list(sorted(utils.flatten(observed_prices)))
         if len(observed_prices) > 0:
@@ -124,16 +119,110 @@ def store_info(country=None):
       seller_name = params['p_seller']
       feedback = params['p_feedback']
 
+      store_splash = utils.beautiful_soup("http://www.bricklink.com/storeSplash.asp?uID=" + store_id)
+      min_buy_elem = store_splash.find(text="Minimum Buy:")
+      if min_buy_elem is not None:
+        min_buy = min_buy_elem.parent.parent.parent.parent.next_sibling.find("font").text
+        try:
+          min_buy = re.search("US \$([0-9.]+)", min_buy).group(1)
+          min_buy = float(min_buy)
+        except AttributeError:
+          # there's a minimum buy in a foreign currency :(
+          continue
+      else:
+        min_buy = 0.0
+
+      ships_to_elem = store_splash.find(text="Store Ships To:")
+      if ships_to_elem is not None:
+        ships = ships_to_elem.parent.parent.parent.parent.next_sibling.find_all(text=True)
+        ships = map(lambda x: unicode(x), ships)
+      else:
+        ships = []
+
+
       entry = {
         'store_name': store_name,
         'store_id': int(store_id),
         'country_name': country_name,
         'country_id': country_id,
         'seller_name': seller_name,
-        'feedback': int(feedback)
+        'feedback': int(feedback),
+        'minimum_buy': min_buy,
+        'ships': ships
       }
       print entry
 
       result.append(entry)
 
   return result
+
+ALL_COUNTRIES = [
+  "Argentina",
+  "Australia",
+  "Austria",
+  "Belarus",
+  "Belgium",
+  "Bolivia",
+  "Bosnia and Herzegovina",
+  "Brazil",
+  "Bulgaria",
+  "Canada",
+  "Chile",
+  "China",
+  "Croatia",
+  "Czech Republic",
+  "Denmark",
+  "Ecuador",
+  "El Salvador",
+  "Estonia",
+  "Finland",
+  "France",
+  "Germany",
+  "Greece",
+  "Guatemala",
+  "Hong Kong",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Ireland",
+  "Israel",
+  "Italy",
+  "Japan",
+  "Jordan",
+  "Latvia",
+  "Lithuania",
+  "Luxembourg",
+  "Macau",
+  "Malaysia",
+  "Mexico",
+  "Monaco",
+  "Netherlands",
+  "New Zealand",
+  "Norway",
+  "Pakistan",
+  "Philippines",
+  "Poland",
+  "Portugal",
+  "Romania",
+  "Russia",
+  "San Marino",
+  "Serbia",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "South Africa",
+  "South Korea",
+  "Spain",
+  "Sweden",
+  "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Thailand",
+  "Trinidad and Tobago",
+  "Turkey",
+  "Ukraine",
+  "United Kingdom",
+  "USA",
+  "Venezuela"
+]

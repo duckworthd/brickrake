@@ -35,7 +35,7 @@ def brute_force(wanted_parts, price_guide, k):
 
 
 def min_cost(wanted_parts, available_parts):
-  """Find the lowest cost way to buy all wanted_parts"""
+  """Greedily minimize the cost of all wanted parts"""
   kf = lambda x: (x['item_id'], x['wanted_color_id'])
   available_parts = utils.groupby(available_parts, kf)
 
@@ -271,19 +271,20 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
     return []
 
 
-def gurobi(wanted_parts, available_parts, shipping_cost=10.0):
+def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
   from gurobipy import *
 
   kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
   kf2 = lambda x: (x['ItemID'], x['ColorID'])
 
   available_by_store = utils.groupby(available_parts, lambda x: x['store_id'])
+  store_by_id = dict( (s['store_id'], s) for s in stores )
 
   m = Model()
 
-  store_variables = {}
-  item_variables  = {}
-  all_variables   = []
+  store_variables = {}  # store id to variable indicating store is used
+  item_variables  = {}  # (item id, color id) to all lots variables that match
+  all_variables   = []  # list of all lot variables + metadata
 
   # for every store
   for (store_id, inventory) in available_by_store.iteritems():
@@ -342,9 +343,20 @@ def gurobi(wanted_parts, available_parts, shipping_cost=10.0):
     m.addConstr(LinExpr(constants, variables),
                 GRB.GREATER_EQUAL, lot['Qty'])
 
+  # for every store
+  for (store_id, variables) in utils.groupby(all_variables, lambda x: x['store_id']).iteritems():
+    use_store         = store_variables[store_id]
+    minimum_purchase  = store_by_id[store_id]['minimum_buy']
+
+    # a constraint saying "if I purchased from this store, I bought the minimum amount or more"
+    constants = [v['cost_per_unit'] for v in variables] + [-1 * minimum_purchase]
+    variables = [v['variable'] for v in variables] + [use_store]
+    m.addConstr(LinExpr(constants, variables),
+                GRB.GREATER_EQUAL, 0)
+
   # minimize sum of costs of items bought + shipping costs
   print 'solving...'
-  m.setParam(GRB.param.MIPGap, 0.05)  # stop when duality gap <= 5%
+  m.setParam(GRB.param.MIPGap, 0.01)  # stop when duality gap <= 1%
   m.optimize()
 
   # get results
