@@ -3,7 +3,6 @@ Algorithms for minimizing cost of a purchase
 """
 import copy
 import itertools
-import math
 
 import utils
 
@@ -187,87 +186,6 @@ def greedy(wanted_parts, price_guide):
   }]
 
 ################################################################################
-
-def scip(wanted_parts, available_parts, shipping_cost=10.0):
-  from zibopt import scip
-
-  kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
-  kf2 = lambda x: (x['ItemID'], x['ColorID'])
-
-  available_by_store = utils.groupby(available_parts, lambda x: x['store_id'])
-
-  solver = scip.solver(quiet=False)
-
-  item_variables = {}
-  all_variables = []
-
-  # for every store
-  print 'building...'
-  for (store_id, inventory) in available_by_store.iteritems():
-    # a variable for if anything was bought from this store. if 1, then pay
-    # shipping cost and all store inventory is available; if 0, then don't pay
-    # for shipping and every lot in it has 0 quantity available
-    use_store = solver.variable(vartype=scip.BINARY,
-                                coefficient=shipping_cost)
-
-    # for every lot in that store
-    for lot in inventory:
-      store_id = lot['store_id']
-      quantity = lot['quantity_available']
-      unit_cost= lot['cost_per_unit']
-
-      # a variable for how much to buy of this lot
-      v = solver.variable(vartype=scip.CONTINUOUS,
-                          coefficient=unit_cost,
-                          lower=0,
-                          upper=quantity)
-
-      # a constraint for how much can be bought
-      # solver += (v >= 0)  # implicitly stated with lower=0
-      solver += (v <= quantity * use_store)
-
-      if kf1(lot) in item_variables:
-        item_variables[kf1(lot)].append(v)
-      else:
-        item_variables[kf1(lot)] = [v]
-
-      all_variables.append({
-        'store_id': store_id,
-        'item_id': lot['item_id'],
-        'wanted_color_id': lot['wanted_color_id'],
-        'color_id': lot['color_id'],
-        'variable': v,
-        'cost_per_unit': unit_cost
-      })
-
-  # for every wanted lot
-  for lot in wanted_parts:
-    # a constraint saying amount bought >= wanted amount
-    variables = item_variables[kf2(lot)]
-    solver += (sum(variables) >= lot['Qty'])
-
-  # minimize sum of costs of items bought + shipping costs
-  print 'solving...'
-  solution = solver.minimize(gap=0.05)
-  if solution:
-    result = []
-    for lot in all_variables:
-      lot['quantity'] = int(math.ceil(solution[lot['variable']]))
-      del lot['variable']
-      if lot['quantity'] > 0:
-        result.append(lot)
-
-    cost = sum(e['quantity'] * e['cost_per_unit'] for e in result)
-    store_ids = list(set(e['store_id'] for e in result))
-    return [{
-      'cost': cost,
-      'allocation': result,
-      'store_ids': store_ids
-    }]
-  else:
-    print 'No solution :('
-    return []
-
 
 def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
   from gurobipy import Model, GRB, LinExpr

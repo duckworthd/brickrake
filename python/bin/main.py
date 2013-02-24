@@ -184,7 +184,8 @@ def wanted_list(args):
   """Create BrickLink Wanted Lists for each store"""
   # load recommendation
   recommendation = io.load_solution(open(args.recommendation))
-  io.save_xml_per_vendor(args.output, recommendation)
+  store_metadata = io.load_store_metadata(open(args.store_list))
+  io.save_xml_per_vendor(args.output, recommendation, store_metadata)
 
 
 def store_list(args):
@@ -243,6 +244,8 @@ if __name__ == '__main__':
       help="Create a BrickLink Wanted List")
   parser_wl.add_argument("--recommendation", required=True,
       help='JSON file output by "brickrake minimize"')
+  parser_wl.add_argument('--store-list', required=True,
+      help='JSON file containing store metadata.')
   parser_wl.add_argument("--output", required=True,
       help="Folder to create BrickLink Wanted List XML in")
   parser_wl.set_defaults(func=wanted_list)

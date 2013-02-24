@@ -109,14 +109,18 @@ def save_xml(f, allocation):
   return
 
 
-def save_xml_per_vendor(folder, solution):
+def save_xml_per_vendor(folder, solution, stores):
   '''Save a BrickLink XML with a Wanted List for each vendor'''
+  stores = utils.groupby(stores, lambda x: x['store_id'])
   allocation = utils.groupby(solution['allocation'], lambda x: x['store_id'])
   # for each store
   for (store_id, group) in sorted(allocation.iteritems()):
+    store = stores[store_id][0]
+    name = store['seller_name']
+
     # get wanted list id
     prompt = ("Create a new 'Wanted List' named '%s' and" +
-        " type its ID here: ") % (store_id,)
+        " type its ID here: ") % (name, )
     wanted_list = raw_input(prompt)
 
     # save that id onto the lot
