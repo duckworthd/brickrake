@@ -1,0 +1,36 @@
+=========
+Brickrake
+=========
+
+Brickrake is suite of tools for spending the least amount of money to get the
+LEGO parts you need from BrickLink. Its primary purpose is to automatically
+tell you what to buy from which vendors to minimize your total cost.  Features
+include,
+
++ understanding Bricklink Wanted List XML and Brickstore XML parts lists
++ scraping store and pricing information directly from BrickLink
++ finding alternative colors when desired color/quantity is unavailable
++ finding the lowest cost solution possible using Gurobi, a powerful integer
+  linear program solver, while considering where stores ship, what their
+  minimum purchases are, and what their inventory is.
++ generation of BrickLink XML, one per vendor, for easy purchasing
+
+Components
+==========
+
+Brickrake consists of 2 components: a python command line tool suite and a
+javascript bookmarklet. The former does the heavy lifting -- scraping data from
+bricklink, minimizing costs, and generating Wanted Lists -- while the latter
+helps you fill out quantities in your browser automatically.
+
+Usage
+=====
+
+1. Go to http://ted.mielczarek.org/code/mozilla/bookmarklet.html and copy the
+contents of javascript/bricklink_choose.js into the "Input" window. Click
+"Crunch" then drag the hyperlink directly under "Output" (named "Your
+Bookmarklet, unless you changed it") to your bookmark toolbar.
+
+2. Open a command line and navigate to the python/ folder in this directory.
+Follow the instructions there for turning your parts list into a BrickLink
+Wanted List for each vendor.
