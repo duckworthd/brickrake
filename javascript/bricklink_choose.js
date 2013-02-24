@@ -5,8 +5,10 @@ function argmin(arr, cmp) {
 }
 
 // inject javascript from URL
-function insertScript(url) {
+function insertScript(url, callback) {
+  var callback = callback == undefined ? function() {} : callback;
   var script = document.createElement('script');
+  script.onload = callback;
   script.setAttribute("src", url);
   (document.body || document.head || document.documentElement)
       .appendChild(script);
@@ -100,8 +102,10 @@ function allocateQuantity(products) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-insertScript("http://code.jquery.com/jquery-1.9.0.min.js");
-insertScript("http://underscorejs.org/underscore-min.js");
+insertScript("http://code.jquery.com/jquery-1.9.0.min.js", 
+  function() {
+    insertScript("http://underscorejs.org/underscore-min.js", run);
+  });
 
 function run() {
   var context = $("frame[name='blstoremain']").get(0).contentDocument,

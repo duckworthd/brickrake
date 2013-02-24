@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import sys
 import traceback
 
 from brickrake import color
@@ -119,6 +120,12 @@ def minimize(args):
 
     available_parts = filter(lambda x: x['store_id'] in store_ids, available_parts)
 
+    solution = minimizer.greedy(wanted_parts, available_parts)[0]
+    if not minimizer.is_valid_solution(wanted_parts, solution['allocation']):
+      print ("You're too restrictive. There's no way to buy what " +
+             "you want with these stores")
+      sys.exit(1)
+
   ################# Minimization #############################
   if args.algorithm in ['ilp', 'greedy']:
     if args.algorithm == 'ilp':
@@ -129,6 +136,7 @@ def minimize(args):
           allowed_stores,
           shipping_cost=args.shipping_cost
       )[0]
+      assert minimizer.is_valid_solution(wanted_parts, solution['allocation'], allowed_stores)
     elif args.algorithm == 'greedy':
       ### Greedy Set Cover ###
       solution = minimizer.greedy(wanted_parts, available_parts)[0]
@@ -140,7 +148,7 @@ def minimize(args):
     stores = set(e['store_id'] for e in solution['allocation'])
     cost = solution['cost']
     unsatisified =  minimizer.unsatisified(wanted_parts, solution['allocation'])
-    print 'Total cost: $%.2f | n_stores: %d | remaining: %d' % (cost, len(stores), len(unsatisified))
+    print 'Total cost: $%.2f | n_stores: %d | remaining lots: %d' % (cost, len(stores), len(unsatisified))
 
 
   elif args.algorithm == 'brute-force':

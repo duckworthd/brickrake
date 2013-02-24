@@ -101,7 +101,7 @@ def save_xml(f, allocation):
     itemtype = etree.SubElement(item, "ITEMTYPE")
     itemtype.text = "P"   # TODO this is a big assumption :(
 
-    if 'wanted_list_id' in row:
+    if 'wanted_list_id' in row and len(row['wanted_list_id']) > 0:
       wanted = etree.SubElement(item, "WANTEDLISTID")
       wanted.text = row['wanted_list_id']
 
@@ -126,7 +126,7 @@ def save_xml_per_vendor(folder, solution):
   # write file
   allocation = utils.flatten(allocation.values())
   with open(folder, 'w') as f:
-    save_bsx(f, allocation)
+    save_xml(f, allocation)
 
 
 def load_price_guide(f):

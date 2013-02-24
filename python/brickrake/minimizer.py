@@ -5,9 +5,6 @@ import copy
 import itertools
 import math
 
-import numpy as np
-import pandas
-
 import utils
 
 
@@ -27,7 +24,7 @@ def brute_force(wanted_parts, price_guide, k):
         'allocation': allocation,
         'store_ids': selected_stores
       })
-      print 'Solution: k=%d, cost=%8.2f, store_ids=%40s' % (k, cost, selected_stores)
+      #print 'Solution: k=%d, cost=%8.2f, store_ids=%40s' % (k, cost, selected_stores)
     else:
       #print 'Unable to fill quote using store_ids=%40s' % (selected_stores,)
       pass
@@ -127,7 +124,7 @@ def greedy(wanted_parts, price_guide):
 
     # use the store that has the most inventory
     next_store, inventory, n_parts = coverages.pop()
-    print 'You can buy %d items from %s' % (n_parts, next_store)
+    #print 'You can buy %d items from %s' % (n_parts, next_store)
     if n_parts == 0:
       break
 
@@ -153,11 +150,12 @@ def greedy(wanted_parts, price_guide):
 
         result.append({
           'store_id': next['store_id'],
-          'quantity': amount_to_buy,
           'item_id': item_id,
-          'color_id': next['color_id'],
           'wanted_color_id': next['wanted_color_id'],
-          'cost_per_unit': next['cost_per_unit']
+          'color_id': next['color_id'],
+          'quantity_available': next['quantity_available'],
+          'cost_per_unit': next['cost_per_unit'],
+          'quantity': amount_to_buy,
         })
 
         wanted_qty -= amount_to_buy
@@ -173,7 +171,7 @@ def greedy(wanted_parts, price_guide):
                                    lambda x: (x['ItemID'], x['ColorID']))
     del available_parts[next_store]
 
-    print 'Wanted parts left: %d' % sum(e['Qty'] for e in wanted_parts)
+    #print 'Wanted parts left: %d' % sum(e['Qty'] for e in wanted_parts)
 
 
   if len(wanted_parts) > 0:
@@ -272,7 +270,7 @@ def scip(wanted_parts, available_parts, shipping_cost=10.0):
 
 
 def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
-  from gurobipy import *
+  from gurobipy import Model, GRB, LinExpr
 
   kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
   kf2 = lambda x: (x['ItemID'], x['ColorID'])
@@ -282,9 +280,8 @@ def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
 
   m = Model()
 
-  store_variables = {}  # store id to variable indicating store is used
-  item_variables  = {}  # (item id, color id) to all lots variables that match
-  all_variables   = []  # list of all lot variables + metadata
+  store_variables     = {}  # store id to variable indicating store is used
+  quantity_variables  = []  # list of all lot variables + metadata
 
   # for every store
   for (store_id, inventory) in available_by_store.iteritems():
@@ -292,7 +289,8 @@ def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
     # a variable for if anything was bought from this store. if 1, then pay
     # shipping cost and all store inventory is available; if 0, then don't pay
     # for shipping and every lot in it has 0 quantity available
-    store_variables[store_id] = m.addVar(0.0, 1.0, shipping_cost, GRB.BINARY)
+    store_variables[store_id] = m.addVar(0.0, 1.0, shipping_cost, GRB.BINARY,
+                                         "use-store=%s" % (store_id,))
 
     for lot in inventory:
       store_id = lot['store_id']
@@ -302,16 +300,11 @@ def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
       color_id = lot['color_id']
 
       # a variable for how much to buy of this lot
-      v = m.addVar(0.0, quantity, unit_cost, GRB.CONTINUOUS)
-
-      # keep a mapping from (wanted item, wanted color) to lots
-      if kf1(lot) in item_variables:
-        item_variables[kf1(lot)].append(v)
-      else:
-        item_variables[kf1(lot)] = [v]
+      v = m.addVar(0.0, quantity, unit_cost, GRB.CONTINUOUS,
+                   "quantity-store=%s-item=%s-color=%s" % (store_id, item_id, color_id))
 
       # keep a list of all lots
-      all_variables.append({
+      quantity_variables.append({
         'store_id': store_id,
         'item_id': lot['item_id'],
         'wanted_color_id': lot['wanted_color_id'],
@@ -325,7 +318,7 @@ def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
   m.update()
 
   # for every lot in every store
-  for lot in all_variables:
+  for lot in quantity_variables:
     use_store = store_variables[lot['store_id']]
     quantity  = lot['quantity_available']
     unit_cost = lot['cost_per_unit']
@@ -333,18 +326,22 @@ def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
 
     # a constraint for how much can be bought
     m.addConstr(LinExpr([1.0, -1 * quantity], [v, use_store]),
-                GRB.LESS_EQUAL, 0.0)
+                GRB.LESS_EQUAL, 0.0,
+                "maxquantity-store=%s-item=%s-color-%d" % (lot['store_id'], lot['item_id'], lot['color_id']))
 
   # for every wanted lot
+  variables_by_id = utils.groupby(quantity_variables, kf1)
   for lot in wanted_parts:
     # a constraint saying amount bought >= wanted amount
-    variables = item_variables[kf2(lot)]
+    variables = map(lambda x: x['variable'], variables_by_id[kf2(lot)])
     constants = len(variables) * [1.0]
     m.addConstr(LinExpr(constants, variables),
-                GRB.GREATER_EQUAL, lot['Qty'])
+                GRB.GREATER_EQUAL, lot['Qty'],
+                "wantedamount-item=%s-color=%s" % (lot['ItemID'], lot['ColorID']))
 
   # for every store
-  for (store_id, variables) in utils.groupby(all_variables, lambda x: x['store_id']).iteritems():
+  variables_by_store = utils.groupby(quantity_variables, lambda x: x['store_id'])
+  for (store_id, variables) in variables_by_store.iteritems():
     use_store         = store_variables[store_id]
     minimum_purchase  = store_by_id[store_id]['minimum_buy']
 
@@ -352,28 +349,32 @@ def gurobi(wanted_parts, available_parts, stores, shipping_cost=10.0):
     constants = [v['cost_per_unit'] for v in variables] + [-1 * minimum_purchase]
     variables = [v['variable'] for v in variables] + [use_store]
     m.addConstr(LinExpr(constants, variables),
-                GRB.GREATER_EQUAL, 0)
+                GRB.GREATER_EQUAL, 0.0,
+                "minbuy-store=%d" % (store_id,))
 
   # minimize sum of costs of items bought + shipping costs
-  print 'solving...'
   m.setParam(GRB.param.MIPGap, 0.01)  # stop when duality gap <= 1%
   m.optimize()
 
   # get results
   if m.ObjVal < float('inf'):
     result = []
-    for lot in all_variables:
+    for lot in quantity_variables:
       # get variable out
       v = lot['variable']
       del lot['variable']
 
-      # save quantity to buy if it's >= 0
-      lot['quantity'] = int(math.ceil(v.X))
+      # lot variables are continuous, so they might not actually be integral.
+      # If they're not, check that they're "almost" integral, so we can just
+      # round. Otherwise, print this warning.  According to theory the optimal
+      # solution is for all continuous variables to be integral.
+      if v.X != int(v.X) and abs(v.X - round(v.X)) > 1e-3:
+        print 'Uh oh. Variable %s has value %f. This is a little close for comfort.' % (v.VarName, v.X)
+
+      # save quantity to buy if it's > 0
+      lot['quantity'] = int(round(v.X))
       if lot['quantity'] > 0:
         result.append(lot)
-
-      # double check that the solver didn't do anything silly
-      assert lot['quantity'] <= lot['quantity_available'], 'wtf?'
 
     cost = sum(e['quantity'] * e['cost_per_unit'] for e in result)
     store_ids = list(set(e['store_id'] for e in result))
@@ -402,6 +403,42 @@ def unsatisified(wanted_list, allocation):
                if v > 0 )
 
 
-def is_complete(wanted_parts, allocation):
-  """Do we still need to buy something?"""
-  return len(unsatisified(wanted_list, allocation)) == 0
+def is_valid_solution(wanted_parts, allocation, stores=None):
+  """Check if the allocation is a valid solution
+
+  1) all wanted parts are bought
+  2) the amount to buy isn't more than is available
+  3) we make the minimum purchase for all used stores
+  """
+  kf1 = lambda x: (x['item_id'], x['wanted_color_id'])
+  kf2 = lambda x: (x['ItemID'], x['ColorID'])
+
+  # for each wanted part
+  allocation_by_id = utils.groupby(allocation, kf1)
+  for lot in wanted_parts:
+    # did we buy enough?
+    bought = allocation_by_id.get(kf2(lot), [])
+    if sum(e['quantity'] for e in bought) < lot['Qty']:
+      return False
+
+  # for each bought lot
+  for lot in allocation:
+    # did we buy <= the amount available?
+    if lot['quantity'] > lot['quantity_available']:
+      return False
+
+  if stores is not None:
+    # for each store
+    allocation_by_store = utils.groupby(allocation, lambda x: x['store_id'])
+    store_by_id = dict( (e['store_id'], e) for e in stores )
+    for (store_id, lots) in allocation_by_store.iteritems():
+      # did we buy at least the minimum purchase?
+      if store_id in store_by_id:
+        store = store_by_id[store_id]
+        price = sum(e['cost_per_unit'] * e['quantity'] for e in lots)
+        if price < store['minimum_buy']:
+          return False
+      else:
+        return False
+
+  return True
